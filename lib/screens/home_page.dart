@@ -17,21 +17,20 @@ class _HomeScreenState extends State<HomeScreen> {
   AutovalidateMode autovalidateMode = AutovalidateMode.disabled;
 
   String? searchTerm;
+  late AppProvider appprov;
 
-  void submit() async {
-    setState(() {
-      autovalidateMode = AutovalidateMode.always;
-    });
-    final form = formKey.currentState;
-    if (form == null || !form.validate()) return;
-    form.save();
-    try {
-      await context.read<AppProvider>().getResult(searchTerm!);
-       Navigator.pushNamed(context, RouteName.successpage);
-      // Navigator.push(
-      //     context, MaterialPageRoute(builder: (_) => SuccessScreen()));
-    } catch (e) {
-      showDialog(
+  @override
+  void initState() {
+    appprov = context.read<AppProvider>();
+    appprov.addListener(appListener);
+    super.initState();
+  }
+
+  void appListener() {
+    if (appprov.state == AppState.success) {
+      Navigator.pushNamed(context, RouteName.successpage);
+    } else if (appprov.state == AppState.error) {
+       showDialog(
           builder: (_) {
             return AlertDialog(
               content: Text('Something went wrong'),
@@ -42,46 +41,69 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void dispose() {
+   appprov.removeListener(appListener);
+    super.dispose();
+  }
+
+  void submit() {
+    setState(() {
+      autovalidateMode = AutovalidateMode.always;
+    });
+    final form = formKey.currentState;
+    if (form == null || !form.validate()) return;
+    form.save();
+
+    context.read<AppProvider>().getResult(searchTerm!);
+
+    // Navigator.push(
+    //     context, MaterialPageRoute(builder: (_) => SuccessScreen()));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppProvider>().state;
-    return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(30),
-            child: Form(
-              key: formKey,
-              autovalidateMode: autovalidateMode,
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  TextFormField(
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(),
-                      labelText: 'Search',
-                      prefixIcon: Icon(Icons.search),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        body: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(30),
+              child: Form(
+                key: formKey,
+                autovalidateMode: autovalidateMode,
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    TextFormField(
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(),
+                        labelText: 'Search',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      validator: (String? value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Search term is required';
+                        }
+                        return null;
+                      },
+                      onSaved: (String? value) {
+                        searchTerm = value;
+                      },
                     ),
-                    validator: (String? value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Search term is required';
-                      }
-                      return null;
-                    },
-                    onSaved: (String? value) {
-                      searchTerm = value;
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                      onPressed: appState == AppState.loading ? null : submit,
-                      child: Text(
-                        appState == AppState.loading
-                            ? "Loading.."
-                            : 'Get Result',
-                        style: TextStyle(fontSize: 20),
-                      ))
-                ],
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                        onPressed: appState == AppState.loading ? null : submit,
+                        child: Text(
+                          appState == AppState.loading
+                              ? "Loading.."
+                              : 'Get Result',
+                          style: TextStyle(fontSize: 20),
+                        ))
+                  ],
+                ),
               ),
             ),
           ),
